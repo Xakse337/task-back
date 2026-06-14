@@ -40,7 +40,6 @@ router.post("/register", async (req: Request, res: Response): Promise<any> => {
         {
           email: email,
           password: password,
-          status: "active",
         },
       ])
       .select()
