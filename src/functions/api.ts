@@ -141,6 +141,50 @@ router.get("/users", async (req: Request, res: Response): Promise<any> => {
   }
 });
 
+router.post(
+  "/users/delete",
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "No token provided" });
+      }
+
+      const token = authHeader.split(" ")[1];
+      try {
+        jwt.verify(token, JWT_SECRET);
+      } catch (jwtError) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+
+      const { ids } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "No user IDs provided or invalid format" });
+      }
+
+      const { error: deleteError } = await supabase
+        .from("users")
+        .delete()
+        .in("id", ids);
+
+      if (deleteError) {
+        console.error("Supabase delete error:", deleteError.message);
+        return res.status(400).json({ error: deleteError.message });
+      }
+
+      return res
+        .status(200)
+        .json({ message: "Users successfully deleted", deletedIds: ids });
+    } catch (error) {
+      console.error("Server error inside /users/delete:", error);
+      return res.status(500).json({ error: "server error" });
+    }
+  }
+);
+
 app.use("/.netlify/functions/api", router);
 
 export const handler = serverless(app);
