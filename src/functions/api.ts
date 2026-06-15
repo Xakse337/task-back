@@ -109,6 +109,38 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
   }
 });
 
+router.get("/users", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    try {
+      jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
+    const { data: users, error: fetchError } = await supabase
+      .from("users")
+      .select("id, email, status, last_login_at")
+      .order("id", { ascending: true });
+
+    if (fetchError) {
+      console.error("Supabase fetch error:", fetchError.message);
+      return res.status(400).json({ error: fetchError.message });
+    }
+
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error("Server error inside /users:", error);
+    return res.status(500).json({ error: "server error" });
+  }
+});
+
 app.use("/.netlify/functions/api", router);
 
 export const handler = serverless(app);
