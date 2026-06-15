@@ -21,7 +21,7 @@ const router = Router();
 router.post("/register", async (req: Request, res: Response): Promise<any> => {
   try {
     const { email, password } = req.body;
-
+    console.log("reg time");
     if (!email || !password) {
       return res.status(400).json({ error: "empty email or pass" });
     }
@@ -64,7 +64,7 @@ router.post("/register", async (req: Request, res: Response): Promise<any> => {
 router.post("/login", async (req: Request, res: Response): Promise<any> => {
   try {
     const { email, password } = req.body;
-
+    console.log("login try");
     if (!email || !password) {
       return res.status(400).json({ error: "empty email or pass" });
     }
@@ -77,6 +77,18 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
 
     if (!user || user.password !== password) {
       return res.status(401).json({ error: "invalid email or password" });
+    }
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        last_login_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    console.log("update time");
+    if (updateError) {
+      console.error("update error last_login_at:", updateError.message);
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
