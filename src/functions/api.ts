@@ -26,16 +26,6 @@ router.post("/register", async (req: Request, res: Response): Promise<any> => {
       return res.status(400).json({ error: "empty email or pass" });
     }
 
-    const { data: existingUser, error: checkError } = await supabase
-      .from("users")
-      .select("email")
-      .eq("email", email)
-      .single();
-
-    if (existingUser) {
-      return res.status(400).json({ error: "email need new" });
-    }
-
     const { data: newUser, error: insertError } = await supabase
       .from("users")
       .insert([
@@ -46,6 +36,8 @@ router.post("/register", async (req: Request, res: Response): Promise<any> => {
       ])
       .select()
       .single();
+
+    console.log(insertError);
 
     if (insertError) {
       return res.status(400).json({ error: insertError.message });
