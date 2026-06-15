@@ -88,7 +88,7 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
 
     console.log("update time");
     if (updateError) {
-      console.error("update error last_login_at:", updateError.message);
+      console.error("update error lastLoginAt:", updateError.message);
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
