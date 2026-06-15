@@ -3,11 +3,13 @@ import serverless from "serverless-http";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
+const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-key";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const app = express();
@@ -52,6 +54,42 @@ router.post("/register", async (req: Request, res: Response): Promise<any> => {
     return res.status(201).json({
       message: "success reg",
       user: newUser,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "server error" });
+  }
+});
+
+router.post("/login", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "empty email or pass" });
+    }
+
+    const { data: user, error: findError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: "invalid email or password" });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    return res.status(200).json({
+      message: "success login",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+      },
     });
   } catch (error) {
     console.error(error);
