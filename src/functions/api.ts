@@ -82,7 +82,7 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
     const { error: updateError } = await supabase
       .from("users")
       .update({
-        last_login_at: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
       })
       .eq("id", user.id);
 
@@ -126,7 +126,7 @@ router.get("/users", async (req: Request, res: Response): Promise<any> => {
 
     const { data: users, error: fetchError } = await supabase
       .from("users")
-      .select("id, email, status, last_login_at")
+      .select("id, email, status, lastLoginAt")
       .order("id", { ascending: true });
 
     if (fetchError) {
