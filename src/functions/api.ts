@@ -118,6 +118,10 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
       return res.status(401).json({ error: "invalid email or password" });
     }
 
+    if (user.status === "blocked" || user.status === "Blocked") {
+      return res.status(403).json({ error: "Your account has been blocked" });
+    }
+
     const { error: updateError } = await supabase
       .from("users")
       .update({
