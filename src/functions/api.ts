@@ -80,26 +80,22 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
       .update({
         lastLoginAt: new Date().toISOString(),
       })
-      .eq("displayId", user.displayId);
+      .eq("id", user.id);
 
     console.log("update time");
     if (updateError) {
       console.error("update error lastLoginAt:", updateError.message);
     }
 
-    const token = jwt.sign(
-      { displayId: user.displayId, email: user.email },
-      JWT_SECRET,
-      {
-        expiresIn: "1d",
-      }
-    );
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "1d",
+    });
 
     return res.status(200).json({
       message: "success login",
       token,
       user: {
-        displayId: user.displayId,
+        id: user.id,
         email: user.email,
       },
     });
@@ -126,8 +122,8 @@ router.get("/users", async (req: Request, res: Response): Promise<any> => {
 
     const { data: users, error: fetchError } = await supabase
       .from("users")
-      .select("displayId, email, status, lastLoginAt")
-      .order("displayId", { ascending: true });
+      .select("id, email, status, lastLoginAt")
+      .order("id", { ascending: true });
 
     if (fetchError) {
       console.error("Supabase fetch error:", fetchError.message);
@@ -168,7 +164,7 @@ router.post(
       const { error: deleteError } = await supabase
         .from("users")
         .delete()
-        .in("displayId", ids);
+        .in("id", ids);
 
       if (deleteError) {
         console.error("Supabase delete error:", deleteError.message);
@@ -209,7 +205,7 @@ router.post(
       const { error: blockError } = await supabase
         .from("users")
         .update({ status: "blocked" })
-        .in("displayId", ids);
+        .in("id", ids);
 
       if (blockError) {
         console.error("Supabase block error:", blockError.message);
@@ -250,7 +246,7 @@ router.post(
       const { error: blockError } = await supabase
         .from("users")
         .update({ status: "active" })
-        .in("displayId", ids);
+        .in("id", ids);
 
       if (blockError) {
         console.error("Supabase block error:", blockError.message);
@@ -279,7 +275,7 @@ router.post(
       const { error: verifyError } = await supabase
         .from("users")
         .update({ status: "active" })
-        .in("displayId", ids)
+        .in("id", ids)
         .eq("status", "unverified");
 
       if (verifyError) {
