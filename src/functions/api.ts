@@ -1,4 +1,4 @@
-import express, { Router, Request, Response } from "express";
+import express, { Router, Request, Response, NextFunction } from "express";
 import serverless from "serverless-http";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
@@ -17,6 +17,40 @@ app.use(cors());
 app.use(express.json());
 
 const router = Router();
+
+const protect = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Missing user ID in request" });
+    }
+    const { data: user } = await supabase
+      .from("users")
+      .select("status")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!user) {
+      return res.status(403).json({ error: "Your account has been deleted" });
+    }
+
+    if (user.status === "blocked" || user.status === "Blocked") {
+      return res.status(403).json({ error: "Your account has been blocked" });
+    }
+
+    next();
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ error: "Server error in protect middleware" });
+  }
+};
 
 router.post("/register", async (req: Request, res: Response): Promise<any> => {
   try {
@@ -53,92 +87,97 @@ router.post("/register", async (req: Request, res: Response): Promise<any> => {
   }
 });
 
-router.post("/login", async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { email, password } = req.body;
-    console.log("login try");
-    if (!email || !password) {
-      return res.status(400).json({ error: "empty email or pass" });
-    }
-
-    const { data: user, error: findError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (!user || user.password !== password) {
-      return res.status(401).json({ error: "invalid email or password" });
-    }
-
-    if (user.status === "blocked" || user.status === "Blocked") {
-      return res.status(403).json({ error: "Your account has been blocked" });
-    }
-
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({
-        lastLoginAt: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-
-    console.log("update time");
-    if (updateError) {
-      console.error("update error lastLoginAt:", updateError.message);
-    }
-
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
-      expiresIn: "1d",
-    });
-
-    return res.status(200).json({
-      message: "success login",
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "server error" });
-  }
-});
-
-router.get("/users", async (req: Request, res: Response): Promise<any> => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "No token provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
-
+router.post(
+  "/login",
+  protect,
+  async (req: Request, res: Response): Promise<any> => {
     try {
-      jwt.verify(token, JWT_SECRET);
-    } catch (jwtError) {
-      return res.status(401).json({ error: "Invalid or expired token" });
+      const { email, password } = req.body;
+      console.log("login try");
+      if (!email || !password) {
+        return res.status(400).json({ error: "empty email or pass" });
+      }
+
+      const { data: user, error: findError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (!user || user.password !== password) {
+        return res.status(401).json({ error: "invalid email or password" });
+      }
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          lastLoginAt: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      console.log("update time");
+      if (updateError) {
+        console.error("update error lastLoginAt:", updateError.message);
+      }
+
+      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+        expiresIn: "1d",
+      });
+
+      return res.status(200).json({
+        message: "success login",
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "server error" });
     }
-
-    const { data: users, error: fetchError } = await supabase
-      .from("users")
-      .select("id, email, status, lastLoginAt")
-      .order("id", { ascending: true });
-
-    if (fetchError) {
-      console.error("Supabase fetch error:", fetchError.message);
-      return res.status(400).json({ error: fetchError.message });
-    }
-
-    return res.status(200).json(users);
-  } catch (error) {
-    console.error("Server error inside /users:", error);
-    return res.status(500).json({ error: "server error" });
   }
-});
+);
+
+router.get(
+  "/users",
+  protect,
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "No token provided" });
+      }
+
+      const token = authHeader.split(" ")[1];
+
+      try {
+        jwt.verify(token, JWT_SECRET);
+      } catch (jwtError) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+
+      const { data: users, error: fetchError } = await supabase
+        .from("users")
+        .select("id, email, status, lastLoginAt")
+        .order("id", { ascending: true });
+
+      if (fetchError) {
+        console.error("Supabase fetch error:", fetchError.message);
+        return res.status(400).json({ error: fetchError.message });
+      }
+
+      return res.status(200).json(users);
+    } catch (error) {
+      console.error("Server error inside /users:", error);
+      return res.status(500).json({ error: "server error" });
+    }
+  }
+);
 
 router.post(
   "/users/delete",
+  protect,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const authHeader = req.headers.authorization;
@@ -183,6 +222,7 @@ router.post(
 
 router.post(
   "/users/block",
+  protect,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const authHeader = req.headers.authorization;
@@ -224,6 +264,7 @@ router.post(
 
 router.post(
   "/users/unblock",
+  protect,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const authHeader = req.headers.authorization;
@@ -265,6 +306,7 @@ router.post(
 
 router.post(
   "/users/verify",
+  protect,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const { ids } = req.body;
