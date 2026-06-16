@@ -24,15 +24,15 @@ const protect = async (
   next: NextFunction
 ): Promise<any> => {
   try {
-    const { id } = req.body;
+    const { email } = req.body;
 
-    if (!id) {
+    if (!email) {
       return res.status(400).json({ error: "Missing user ID in request" });
     }
     const { data: user } = await supabase
       .from("users")
       .select("status")
-      .eq("id", id)
+      .eq("email", email)
       .maybeSingle();
 
     if (!user) {
