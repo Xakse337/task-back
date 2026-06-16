@@ -100,57 +100,53 @@ router.post("/register", async (req: Request, res: Response): Promise<any> => {
   }
 });
 
-router.post(
-  "/login",
-  protect,
-  async (req: Request, res: Response): Promise<any> => {
-    try {
-      const { email, password } = req.body;
-      console.log("login try");
-      if (!email || !password) {
-        return res.status(400).json({ error: "empty email or pass" });
-      }
-
-      const { data: user, error: findError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", email)
-        .maybeSingle();
-
-      if (!user || user.password !== password) {
-        return res.status(401).json({ error: "invalid email or password" });
-      }
-
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({
-          lastLoginAt: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      console.log("update time");
-      if (updateError) {
-        console.error("update error lastLoginAt:", updateError.message);
-      }
-
-      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
-        expiresIn: "1d",
-      });
-
-      return res.status(200).json({
-        message: "success login",
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ error: "server error" });
+router.post("/login", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { email, password } = req.body;
+    console.log("login try");
+    if (!email || !password) {
+      return res.status(400).json({ error: "empty email or pass" });
     }
+
+    const { data: user, error: findError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: "invalid email or password" });
+    }
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        lastLoginAt: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    console.log("update time");
+    if (updateError) {
+      console.error("update error lastLoginAt:", updateError.message);
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    return res.status(200).json({
+      message: "success login",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "server error" });
   }
-);
+});
 
 router.get(
   "/users",
