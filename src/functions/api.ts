@@ -24,10 +24,23 @@ const protect = async (
   next: NextFunction
 ): Promise<any> => {
   try {
-    const { email } = req.body;
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
 
+    const token = authHeader.split(" ")[1];
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
+    const email = decoded.email;
     if (!email) {
-      return res.status(400).json({ error: "Missing user ID in request" });
+      return res.status(400).json({ error: "Invalid token payload" });
     }
     const { data: user } = await supabase
       .from("users")
